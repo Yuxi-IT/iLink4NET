@@ -37,3 +37,6 @@ while (true)
 - `context_token` 自动缓存与回复复用
 - 输入状态（`typing_ticket` 缓存）
 - 媒体 AES-128-ECB 加解密、CDN 上传下载
+
+## 鸣谢
+[corespeed-io/WechatBot](https://github.com/corespeed-io/wechatbot)为本项目提供了很多参考
