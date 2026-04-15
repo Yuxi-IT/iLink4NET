@@ -1,5 +1,9 @@
-﻿# iLink4NET
-
+﻿<div align="center">
+  <img src="doc/logo.png" width="440px" />
+</div>
+<center>
+<h1>iLink4NET</h1>
+</center>
 面向 .NET 10 的微信 iLink Bot 协议客户端库。
 
 ## 快速开始
