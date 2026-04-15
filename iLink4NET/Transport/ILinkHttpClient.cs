@@ -53,12 +53,6 @@ public sealed class ILinkHttpClient
         return await ParseResponseAsync<T>(response, cancellationToken).ConfigureAwait(false);
     }
 
-    public object CreatePayload(object body) => new
-    {
-        base_info = new BaseInfo(_options.ChannelVersion),
-        body,
-    };
-
     private static StringContent BuildJsonContent(object payload)
     {
         var json = JsonSerializer.Serialize(payload, JsonOptions);

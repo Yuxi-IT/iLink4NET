@@ -80,6 +80,33 @@ public sealed class MessageService : IMessageService
         EnsureResponseState(response.Ret, response.ErrCode, response.ErrorMessage);
     }
 
+    public async Task SendMediaMessageAsync(string botToken, OutgoingMediaMessage message, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(botToken);
+        ArgumentNullException.ThrowIfNull(message);
+
+        var response = await _httpClient.PostAsync<SimpleResponse>(
+            "/sendmessage",
+            new
+            {
+                base_info = new BaseInfo(_options.ChannelVersion),
+                msg = new
+                {
+                    to_user_id = message.ToUserId,
+                    context_token = message.ContextToken,
+                    media = new
+                    {
+                        encrypt_query_param = message.MediaReference.EncryptQueryParam,
+                        aes_key = message.MediaReference.AesKey,
+                    },
+                },
+            },
+            botToken,
+            cancellationToken).ConfigureAwait(false);
+
+        EnsureResponseState(response.Ret, response.ErrCode, response.ErrorMessage);
+    }
+
     public async Task SendReplyAsync(string botToken, IncomingMessage incomingMessage, string text, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(text);

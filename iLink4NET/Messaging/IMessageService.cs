@@ -11,5 +11,7 @@ public interface IMessageService
 
     Task SendTextMessageAsync(string botToken, OutgoingTextMessage message, CancellationToken cancellationToken = default);
 
+    Task SendMediaMessageAsync(string botToken, OutgoingMediaMessage message, CancellationToken cancellationToken = default);
+
     Task SendReplyAsync(string botToken, IncomingMessage incomingMessage, string text, CancellationToken cancellationToken = default);
 }
