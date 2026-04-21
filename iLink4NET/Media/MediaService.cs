@@ -8,9 +8,6 @@ using ILink4NET.Transport;
 
 namespace ILink4NET.Media;
 
-/// <summary>
-/// 媒体上传/下载实现。
-/// </summary>
 public sealed class MediaService : IMediaService
 {
     private readonly ILinkHttpClient _apiClient;
@@ -29,12 +26,15 @@ public sealed class MediaService : IMediaService
         ArgumentNullException.ThrowIfNull(rawBytes);
 
         var aesKey = RandomNumberGenerator.GetBytes(16);
+        var aesKeyHex = Convert.ToHexString(aesKey).ToLowerInvariant();
         var encrypted = TransformAesEcb(rawBytes, aesKey, encrypt: true);
 
         return new MediaEncryptionResult(
             encrypted,
             Convert.ToBase64String(aesKey),
-            Convert.ToHexString(aesKey).ToLowerInvariant(),
+            Convert.ToBase64String(Encoding.UTF8.GetBytes(aesKeyHex)),
+            aesKeyHex,
+            Convert.ToHexString(MD5.HashData(rawBytes)).ToLowerInvariant(),
             rawBytes.Length,
             encrypted.Length);
     }
@@ -49,24 +49,32 @@ public sealed class MediaService : IMediaService
     public async Task<MediaUploadTicket> RequestUploadTicketAsync(
         string botToken,
         string fileKey,
+        string toUserId,
         MediaType mediaType,
         MediaEncryptionResult encryptedMedia,
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(botToken);
         ArgumentException.ThrowIfNullOrWhiteSpace(fileKey);
+        ArgumentException.ThrowIfNullOrWhiteSpace(toUserId);
         ArgumentNullException.ThrowIfNull(encryptedMedia);
 
+        // 视频需要服务端生成缩略图，其余类型跳过缩略图生成
+        var noNeedThumb = mediaType != MediaType.Video;
+
         var response = await _apiClient.PostAsync<GetUploadUrlResponse>(
-            "/getuploadurl",
+            "/ilink/bot/getuploadurl",
             new
             {
                 base_info = new BaseInfo(_options.ChannelVersion),
                 filekey = fileKey,
                 media_type = ToMediaTypeValue(mediaType),
+                to_user_id = toUserId,
                 rawsize = encryptedMedia.RawSize,
+                rawfilemd5 = encryptedMedia.RawFileMd5,
                 filesize = encryptedMedia.EncryptedSize,
-                aeskey = encryptedMedia.AesKeyBase64,
+                aeskey_hex = encryptedMedia.AesKeyHex,
+                no_need_thumb = noNeedThumb,
             },
             botToken,
             cancellationToken).ConfigureAwait(false);
@@ -78,20 +86,22 @@ public sealed class MediaService : IMediaService
             throw new ILinkApiException("getuploadurl 未返回 upload_param。", response.ErrCode);
         }
 
-        return new MediaUploadTicket(response.UploadParam);
+        return new MediaUploadTicket(response.UploadParam, fileKey);
     }
 
     public async Task<UploadedMediaReference> UploadToCdnAsync(
         string uploadParam,
+        string fileKey,
         string aesKey,
         byte[] encryptedBytes,
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(uploadParam);
+        ArgumentException.ThrowIfNullOrWhiteSpace(fileKey);
         ArgumentException.ThrowIfNullOrWhiteSpace(aesKey);
         ArgumentNullException.ThrowIfNull(encryptedBytes);
 
-        var uploadUri = new Uri(_options.CdnBaseUri, $"/upload?encrypted_query_param={Uri.EscapeDataString(uploadParam)}");
+        var uploadUri = BuildCdnUri($"upload?encrypted_query_param={Uri.EscapeDataString(uploadParam)}&filekey={Uri.EscapeDataString(fileKey)}");
 
         using var request = new HttpRequestMessage(HttpMethod.Post, uploadUri)
         {
@@ -123,7 +133,7 @@ public sealed class MediaService : IMediaService
         ArgumentException.ThrowIfNullOrWhiteSpace(encryptQueryParam);
         ArgumentException.ThrowIfNullOrWhiteSpace(aesKey);
 
-        var downloadUri = new Uri(_options.CdnBaseUri, $"/download?encrypted_query_param={Uri.EscapeDataString(encryptQueryParam)}");
+        var downloadUri = BuildCdnUri($"download?encrypted_query_param={Uri.EscapeDataString(encryptQueryParam)}");
         using var response = await _httpClient.GetAsync(downloadUri, cancellationToken).ConfigureAwait(false);
 
         if (!response.IsSuccessStatusCode)
@@ -137,7 +147,7 @@ public sealed class MediaService : IMediaService
 
     private static void EnsureResponseState(int? ret, int? errCode, string? errorMessage)
     {
-        if (ret == 0)
+        if (ret == 0 || (ret is null && errCode is null))
         {
             return;
         }
@@ -147,17 +157,23 @@ public sealed class MediaService : IMediaService
             throw new ILinkSessionExpiredException();
         }
 
-        throw new ILinkApiException(errorMessage ?? "iLink 调用失败。", errCode ?? ret);
+        var message = errorMessage;
+        if (string.IsNullOrWhiteSpace(message))
+        {
+            message = $"iLink 调用失败（ret={ret?.ToString() ?? "null"}, errcode={errCode?.ToString() ?? "null"}）。";
+        }
+
+        throw new ILinkApiException(message, errCode ?? ret);
     }
 
-    private static string ToMediaTypeValue(MediaType mediaType)
+    private static int ToMediaTypeValue(MediaType mediaType)
     {
         return mediaType switch
         {
-            MediaType.Image => "image",
-            MediaType.Video => "video",
-            MediaType.File => "file",
-            MediaType.Voice => "voice",
+            MediaType.Image => 1,
+            MediaType.Video => 2,
+            MediaType.File => 3,
+            MediaType.Voice => 4,
             _ => throw new ArgumentOutOfRangeException(nameof(mediaType), mediaType, "不支持的媒体类型。"),
         };
     }
@@ -208,6 +224,17 @@ public sealed class MediaService : IMediaService
         }
 
         return true;
+    }
+
+    private Uri BuildCdnUri(string relativePathAndQuery)
+    {
+        var baseUri = _options.CdnBaseUri.ToString();
+        if (!baseUri.EndsWith("/", StringComparison.Ordinal))
+        {
+            baseUri += "/";
+        }
+
+        return new Uri(new Uri(baseUri, UriKind.Absolute), relativePathAndQuery);
     }
 
     private sealed class GetUploadUrlResponse
