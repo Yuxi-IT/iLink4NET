@@ -9,9 +9,6 @@ using ILink4NET.Transport;
 
 namespace ILink4NET.Client;
 
-/// <summary>
-/// iLink 对外统一客户端。
-/// </summary>
 public sealed class ILinkBotClient
 {
     private readonly ILinkClientOptions _options;
@@ -32,9 +29,6 @@ public sealed class ILinkBotClient
         ContextTokens = contextTokenStore ?? throw new ArgumentNullException(nameof(contextTokenStore));
     }
 
-    /// <summary>
-    /// 当前会话凭证，登录成功后赋值。
-    /// </summary>
     public SessionCredentials? Credentials { get; private set; }
 
     public ILoginService Login { get; }
@@ -76,12 +70,13 @@ public sealed class ILinkBotClient
         string toUserId,
         string contextToken,
         UploadedMediaReference mediaReference,
+        MediaType mediaType = MediaType.Image,
         CancellationToken cancellationToken = default)
     {
         var token = GetBotTokenOrThrow();
         await Messages.SendMediaMessageAsync(
             token,
-            new OutgoingMediaMessage(toUserId, contextToken, mediaReference),
+            new OutgoingMediaMessage(toUserId, contextToken, mediaReference, mediaType),
             cancellationToken).ConfigureAwait(false);
     }
 
@@ -92,6 +87,7 @@ public sealed class ILinkBotClient
     }
 
     public async Task<UploadedMediaReference> UploadMediaAsync(
+        string toUserId,
         string fileKey,
         MediaType mediaType,
         byte[] rawBytes,
@@ -100,8 +96,13 @@ public sealed class ILinkBotClient
         var token = GetBotTokenOrThrow();
 
         var encrypted = Media.EncryptMedia(rawBytes);
-        var ticket = await Media.RequestUploadTicketAsync(token, fileKey, mediaType, encrypted, cancellationToken).ConfigureAwait(false);
-        return await Media.UploadToCdnAsync(ticket.UploadParam, encrypted.AesKeyBase64, encrypted.EncryptedBytes, cancellationToken).ConfigureAwait(false);
+        var ticket = await Media.RequestUploadTicketAsync(token, fileKey, toUserId, mediaType, encrypted, cancellationToken).ConfigureAwait(false);
+        return await Media.UploadToCdnAsync(
+            ticket.UploadParam,
+            ticket.FileKey,
+            encrypted.AesKeyHexBase64,
+            encrypted.EncryptedBytes,
+            cancellationToken).ConfigureAwait(false);
     }
 
     private string GetBotTokenOrThrow()
