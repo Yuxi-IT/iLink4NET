@@ -105,6 +105,48 @@ public sealed class ILinkBotClient
             cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// 上传语音并发送给指定用户。rawBytes 为原始音频字节（如 AMR/MP3）。
+    /// </summary>
+    public async Task SendVoiceAsync(
+        string toUserId,
+        string contextToken,
+        byte[] rawBytes,
+        CancellationToken cancellationToken = default)
+    {
+        var fileKey = Guid.NewGuid().ToString("N");
+        var mediaRef = await UploadMediaAsync(toUserId, fileKey, MediaType.Voice, rawBytes, cancellationToken).ConfigureAwait(false);
+        await SendMediaMessageAsync(toUserId, contextToken, mediaRef, MediaType.Voice, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 上传图片并发送给指定用户。rawBytes 为原始图片字节（如 JPEG/PNG）。
+    /// </summary>
+    public async Task SendImageAsync(
+        string toUserId,
+        string contextToken,
+        byte[] rawBytes,
+        CancellationToken cancellationToken = default)
+    {
+        var fileKey = Guid.NewGuid().ToString("N");
+        var mediaRef = await UploadMediaAsync(toUserId, fileKey, MediaType.Image, rawBytes, cancellationToken).ConfigureAwait(false);
+        await SendMediaMessageAsync(toUserId, contextToken, mediaRef, MediaType.Image, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 上传视频并发送给指定用户。rawBytes 为原始视频字节（如 MP4）。
+    /// </summary>
+    public async Task SendVideoAsync(
+        string toUserId,
+        string contextToken,
+        byte[] rawBytes,
+        CancellationToken cancellationToken = default)
+    {
+        var fileKey = Guid.NewGuid().ToString("N");
+        var mediaRef = await UploadMediaAsync(toUserId, fileKey, MediaType.Video, rawBytes, cancellationToken).ConfigureAwait(false);
+        await SendMediaMessageAsync(toUserId, contextToken, mediaRef, MediaType.Video, cancellationToken).ConfigureAwait(false);
+    }
+
     private string GetBotTokenOrThrow()
     {
         return Credentials?.BotToken
