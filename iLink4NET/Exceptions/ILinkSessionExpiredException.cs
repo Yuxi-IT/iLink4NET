@@ -1,8 +1,5 @@
 ﻿namespace ILink4NET.Exceptions;
 
-/// <summary>
-/// 会话过期异常（errcode = -14）。
-/// </summary>
 public sealed class ILinkSessionExpiredException : ILinkApiException
 {
     public const int SessionExpiredCode = -14;

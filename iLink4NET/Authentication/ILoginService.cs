@@ -2,9 +2,6 @@
 
 namespace ILink4NET.Authentication;
 
-/// <summary>
-/// 扫码登录服务。
-/// </summary>
 public interface ILoginService
 {
     Task<LoginQrCode> CreateQrCodeAsync(CancellationToken cancellationToken = default);

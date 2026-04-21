@@ -2,9 +2,6 @@
 
 namespace ILink4NET.Messaging;
 
-/// <summary>
-/// iLink 消息收发服务。
-/// </summary>
 public interface IMessageService
 {
     Task<UpdateBatch> GetUpdatesAsync(string botToken, string cursor, CancellationToken cancellationToken = default);

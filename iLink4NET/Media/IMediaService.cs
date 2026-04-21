@@ -1,8 +1,5 @@
 ﻿namespace ILink4NET.Media;
 
-/// <summary>
-/// 媒体能力接口。
-/// </summary>
 public interface IMediaService
 {
     MediaEncryptionResult EncryptMedia(byte[] rawBytes);
@@ -12,12 +9,14 @@ public interface IMediaService
     Task<MediaUploadTicket> RequestUploadTicketAsync(
         string botToken,
         string fileKey,
+        string toUserId,
         MediaType mediaType,
         MediaEncryptionResult encryptedMedia,
         CancellationToken cancellationToken = default);
 
     Task<UploadedMediaReference> UploadToCdnAsync(
         string uploadParam,
+        string fileKey,
         string aesKey,
         byte[] encryptedBytes,
         CancellationToken cancellationToken = default);

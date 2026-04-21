@@ -6,9 +6,6 @@ using ILink4NET.Options;
 
 namespace ILink4NET.Transport;
 
-/// <summary>
-/// iLink HTTP 协议客户端，负责组装通用请求头与基础请求体。
-/// </summary>
 public sealed class ILinkHttpClient
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)

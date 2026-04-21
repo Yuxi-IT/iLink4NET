@@ -2,9 +2,6 @@
 
 namespace ILink4NET.Stores;
 
-/// <summary>
-/// 默认内存版 Context Token 存储。
-/// </summary>
 public sealed class InMemoryContextTokenStore : IContextTokenStore
 {
     private readonly ConcurrentDictionary<string, string> _tokens = new(StringComparer.Ordinal);

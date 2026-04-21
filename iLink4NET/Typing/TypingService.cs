@@ -8,9 +8,6 @@ using ILink4NET.Transport;
 
 namespace ILink4NET.Typing;
 
-/// <summary>
-/// 输入状态实现。
-/// </summary>
 public sealed class TypingService : ITypingService
 {
     private static readonly TimeSpan TicketLifetime = TimeSpan.FromHours(24);
@@ -36,7 +33,7 @@ public sealed class TypingService : ITypingService
         var ticket = await GetTypingTicketAsync(botToken, userId, contextToken, cancellationToken).ConfigureAwait(false);
 
         var response = await _httpClient.PostAsync<SimpleResponse>(
-            "/sendtyping",
+            "/ilink/bot/sendtyping",
             new
             {
                 base_info = new BaseInfo(_options.ChannelVersion),
@@ -69,7 +66,7 @@ public sealed class TypingService : ITypingService
         }
 
         var response = await _httpClient.PostAsync<GetConfigResponse>(
-            "/getconfig",
+            "/ilink/bot/getconfig",
             new
             {
                 base_info = new BaseInfo(_options.ChannelVersion),
@@ -92,7 +89,7 @@ public sealed class TypingService : ITypingService
 
     private static void EnsureResponseState(int? ret, int? errCode, string? errorMessage)
     {
-        if (ret == 0)
+        if (ret == 0 || (ret is null && errCode is null))
         {
             return;
         }
@@ -102,7 +99,13 @@ public sealed class TypingService : ITypingService
             throw new ILinkSessionExpiredException();
         }
 
-        throw new ILinkApiException(errorMessage ?? "iLink 调用失败。", errCode ?? ret);
+        var message = errorMessage;
+        if (string.IsNullOrWhiteSpace(message))
+        {
+            message = $"iLink 调用失败（ret={ret?.ToString() ?? "null"}, errcode={errCode?.ToString() ?? "null"}）。";
+        }
+
+        throw new ILinkApiException(message, errCode ?? ret);
     }
 
     private sealed record TicketCacheItem(string Ticket, DateTimeOffset CreatedAt);

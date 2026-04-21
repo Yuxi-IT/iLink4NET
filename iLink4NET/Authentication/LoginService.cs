@@ -5,9 +5,6 @@ using ILink4NET.Transport;
 
 namespace ILink4NET.Authentication;
 
-/// <summary>
-/// iLink 扫码登录实现。
-/// </summary>
 public sealed class LoginService : ILoginService
 {
     private readonly ILinkHttpClient _httpClient;
@@ -19,21 +16,25 @@ public sealed class LoginService : ILoginService
 
     public async Task<LoginQrCode> CreateQrCodeAsync(CancellationToken cancellationToken = default)
     {
-        var response = await _httpClient.GetAsync<GetQrCodeResponse>("/get_bot_qrcode?bot_type=3", cancellationToken).ConfigureAwait(false);
+        var response = await _httpClient.GetAsync<GetQrCodeResponse>("/ilink/bot/get_bot_qrcode?bot_type=3", cancellationToken).ConfigureAwait(false);
 
-        if (string.IsNullOrWhiteSpace(response.QrCode) || string.IsNullOrWhiteSpace(response.QrCodeImageContent))
+        if (string.IsNullOrWhiteSpace(response.QrCode))
         {
             throw new ILinkApiException("二维码响应缺少必要字段。", response.ErrCode);
         }
 
-        return new LoginQrCode(response.QrCode, new Uri(response.QrCodeImageContent));
+        var qrImage = string.IsNullOrWhiteSpace(response.QrCodeImageContent)
+            ? response.QrCode
+            : response.QrCodeImageContent;
+
+        return new LoginQrCode(response.QrCode, new Uri(qrImage));
     }
 
     public async Task<QrCodeStatusResult> QueryQrCodeStatusAsync(string qrCode, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(qrCode);
 
-        var response = await _httpClient.GetAsync<GetQrCodeStatusResponse>($"/get_qrcode_status?qrcode={Uri.EscapeDataString(qrCode)}", cancellationToken).ConfigureAwait(false);
+        var response = await _httpClient.GetAsync<GetQrCodeStatusResponse>($"/ilink/bot/get_qrcode_status?qrcode={Uri.EscapeDataString(qrCode)}", cancellationToken).ConfigureAwait(false);
 
         var status = MapStatus(response.Status);
         var credentials = status == QrCodeLoginStatus.Confirmed
@@ -90,6 +91,7 @@ public sealed class LoginService : ILoginService
         return rawStatus?.ToLowerInvariant() switch
         {
             "wait" => QrCodeLoginStatus.Wait,
+            "scanned" => QrCodeLoginStatus.Scanned,
             "scaned" => QrCodeLoginStatus.Scanned,
             "confirmed" => QrCodeLoginStatus.Confirmed,
             "expired" => QrCodeLoginStatus.Expired,
